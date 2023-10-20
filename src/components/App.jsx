@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import { useState, useEffect } from 'react'
 import Notiflix from 'notiflix'
 import { nanoid } from 'nanoid'
 import { RiContactsBook2Fill } from 'react-icons/ri';
@@ -9,57 +9,34 @@ import { MainContainer, AppTitle, ContactsList, ContactsTitle } from './App.styl
 
 const LS_KEY = "contacts";
 
-export default class App extends Component {
-  state = {
-    contacts: [],
-    filter: '',
-  }
+export default function App() {
+  const [contacts, setContacts] = useState(() => {
+    return JSON.parse(window.localStorage.getItem(LS_KEY)) ?? [];
+  });
+  const [filter, setFilter] = useState('');
 
-  componentDidMount() {
-    const savedContacts = localStorage.getItem(LS_KEY);
-    if (savedContacts !== null) {
-      this.setState({ contacts: JSON.parse(savedContacts) });
-    }
-  }
+  useEffect(() => {
+    window.localStorage.setItem(LS_KEY, JSON.stringify(contacts));
+  }, [contacts])
 
-  componentDidUpdate(_, prevState) {
-    if (prevState.contacts !== this.contacts) {
-      localStorage.setItem(LS_KEY, JSON.stringify(this.state.contacts));
-    }
-  }
-
-  onAddContacts = (values, helpers) => {
-    if (this.state.contacts.some(contact => contact.name === values.name)) {
+  const onAddContacts = (values, helpers) => {
+    if (contacts.some(contact => contact.name === values.name)) {
       Notiflix.Notify.failure('This person already exists');
       helpers.resetForm();
       return;
     }
 
-    const contact = {
-      id: nanoid(),
-      name: values.name,
-      number: values.number
-    }
-
-    this.setState(prevState => ({
-      contacts: [...prevState.contacts, contact]
-    }));
+    const { name, number } = values;
+    setContacts(prevContacts => [...prevContacts, { id: nanoid(), name, number}]);
 
     helpers.resetForm();
   }
 
-  onInputFilter = (e) => {
-    this.setState({ filter: e.target.value });
+  const onDeleteContact = id => {
+    setContacts(prevContacts => prevContacts.filter(contact => contact.id !== id));
   }
 
-  onDeleteContact = (id) => {
-    this.setState(prevState => ({
-      contacts: prevState.contacts.filter(contact => contact.id !== id)
-    }))
-  }
-
-  getContacts = () => {
-    const { contacts, filter } = this.state;
+  const getContacts = () => {
     const normalizedFilter = filter.toLowerCase();
 
     return contacts.filter(contact => {
@@ -67,26 +44,22 @@ export default class App extends Component {
     })
   }
 
-  render() {
-    const { filter } = this.state;
-    
-    return (
-      <div>
+  return (
+    <div>
         <AppTitle><RiContactsBook2Fill />Phonebook</AppTitle>
 
         <MainContainer>
-          <ContactsForm onSubmitForm={this.onAddContacts} />
+          <ContactsForm onSubmitForm={onAddContacts} />
 
           <ContactsList>
             <ContactsTitle>Contacts</ContactsTitle>
-            <Filter filter={filter} onInputFilter={this.onInputFilter} />
+            <Filter filter={filter} onInputFilter={(evt) => setFilter(evt.target.value)} />
             <ContactsBook
-              contacts={this.getContacts()}
-              onDeleteContact={this.onDeleteContact}
+              contacts={getContacts()}
+              onDeleteContact={onDeleteContact}
             />
           </ContactsList>
         </MainContainer>
       </div>
-    )
-  }
+  )
 }
